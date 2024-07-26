@@ -3,6 +3,8 @@ package io.metersphere.jmeter.reporters;
 import com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroup;
 import kg.apc.jmeter.threads.UltimateThreadGroup;
 import net.sf.json.JSONArray;
+import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.jmeter.engine.util.NoThreadClone;
 import org.apache.jmeter.reporters.AbstractListenerElement;
 import org.apache.jmeter.samplers.Remoteable;
@@ -13,11 +15,13 @@ import org.apache.jmeter.testelement.ThreadListener;
 import org.apache.jmeter.testelement.property.JMeterProperty;
 import org.apache.jmeter.threads.AbstractThreadGroup;
 import org.apache.jmeter.threads.JMeterContextService;
+import org.apache.jmeter.threads.JMeterThread;
 import org.apache.jmeter.threads.ThreadGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -113,7 +117,14 @@ public class ThreadGroupAutoStop
             if (!once.get(threadGroup).getAndSet(true)) {
                 new Timer(true).schedule(new TimerTask() {
                     public void run() {
-                        threadGroup.tellThreadsToStop();
+                        try {
+                            Field allThreads = FieldUtils.getDeclaredField(ThreadGroup.class, "allThreads", true);
+                            ConcurrentHashMap<JMeterThread, Thread> o = (ConcurrentHashMap<JMeterThread, Thread>) allThreads.get(threadGroup);
+                            o.keySet().forEach(JMeterThread::interrupt);
+                            threadGroup.stop();
+                        } catch (IllegalAccessException e) {
+                            log.error(e.getMessage(), e);
+                        }
                         log.info("Expected duration reached, shutdown the ThreadGroup");
                         this.cancel();
                     }
