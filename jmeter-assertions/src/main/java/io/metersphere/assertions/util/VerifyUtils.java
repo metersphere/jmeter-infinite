@@ -350,9 +350,15 @@ public class VerifyUtils {
     }
 
     public static void notEqualsAssert(Object actualValue, String expectedValue) {
-        try {
-            equalsAssert(actualValue, expectedValue);
-        } catch (IllegalStateException e) {
+        if (actualValue instanceof JSONArray) {
+            if (!arrayMatched((JSONArray) actualValue, expectedValue)) {
+                return;
+            }
+        } else if (actualValue instanceof String) {
+            if (!isObjectEquals(actualValue, "\"" + expectedValue + "\"")) {
+                return;
+            }
+        } else if (!isObjectEquals(actualValue, expectedValue)) {
             return;
         }
         String msg = "Value expected to not equals : \n %s \n but found: \n %s";
